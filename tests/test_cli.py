@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from telegram_notification_hub.cli import main
 
 
@@ -154,3 +157,128 @@ def test_cli_send_uses_env(monkeypatch, capsys):
 
     assert exit_code == 0
     assert "Telegram notification sent" in captured.out
+
+
+def test_cli_send_log_success(tmp_path: Path, monkeypatch, capsys):
+    log_file = tmp_path / "execution.json"
+    log_file.write_text(
+        json.dumps(
+            {
+                "workflow_id": "sample_workflow",
+                "status": "success",
+                "steps_executed": 3,
+                "error": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "telegram_notification_hub.cli.TelegramSender",
+        FakeSenderSuccess,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "telegram-notifier",
+            "send-log",
+            str(log_file),
+            "--token",
+            "test-token",
+            "--chat-id",
+            "123456",
+        ],
+    )
+
+    exit_code = main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Telegram workflow notification sent" in captured.out
+
+
+def test_cli_send_log_missing_file(monkeypatch, capsys):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "telegram-notifier",
+            "send-log",
+            "missing-execution.json",
+            "--token",
+            "test-token",
+            "--chat-id",
+            "123456",
+        ],
+    )
+
+    exit_code = main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "Failed to read workflow log" in captured.err
+
+
+def test_cli_send_log_missing_token(tmp_path: Path, monkeypatch, capsys):
+    log_file = tmp_path / "execution.json"
+    log_file.write_text(
+        json.dumps(
+            {
+                "workflow_id": "sample_workflow",
+                "status": "success",
+                "steps_executed": 3,
+                "error": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "telegram-notifier",
+            "send-log",
+            str(log_file),
+            "--chat-id",
+            "123456",
+        ],
+    )
+
+    exit_code = main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "Missing Telegram bot token" in captured.err
+
+
+def test_cli_send_log_missing_chat_id(tmp_path: Path, monkeypatch, capsys):
+    log_file = tmp_path / "execution.json"
+    log_file.write_text(
+        json.dumps(
+            {
+                "workflow_id": "sample_workflow",
+                "status": "success",
+                "steps_executed": 3,
+                "error": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "telegram-notifier",
+            "send-log",
+            str(log_file),
+            "--token",
+            "test-token",
+        ],
+    )
+
+    exit_code = main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "Missing Telegram chat ID" in captured.err

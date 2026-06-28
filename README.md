@@ -22,6 +22,7 @@ It consumes workflow execution logs and delivers formatted notifications through
 
 ## Project Structure
 
+```text
 telegram_notification_hub_mvp/
 ├── examples/
 ├── src/
@@ -30,6 +31,7 @@ telegram_notification_hub_mvp/
 ├── README.md
 ├── pyproject.toml
 └── .gitignore
+```
 
 ---
 
